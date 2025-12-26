@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Ancestor Flow Chart</title>
+
+    <style>
+        :root {
+            /* Background / lines */
+            --paper: #f6f3ef;
+            --paper2: #f2eee8;
+            --wire: #cdbfae;
+
+            /* Card */
+            --card: #ffffff;
+            --cardBorder: rgba(0, 0, 0, .12);
+            --shadow: 0 10px 26px rgba(0, 0, 0, .08);
+            --radius: 10px;
+
+            /* Typography */
+            --title: #2a2a2a;
+            --muted: #6f6b63;
+
+            /* Branch colors (match your legend) */
+            --b1: #b54a42;
+            /* Branch 1 (red) */
+            --b2: #2f7a4a;
+            /* Branch 2 (green) */
+            --b3: #2b62a6;
+            /* Branch 3 (blue) */
+
+            /* layout */
+            --nodeW: 120;
+            --nodeH: 36;
+            --gapX: 5;
+            --gapY: 45;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            background: linear-gradient(180deg, var(--paper), var(--paper2));
+            overflow: hidden;
+            color: var(--title);
+            font-family: Georgia, "Times New Roman", Times, serif;
+        }
+
+        /* Top bar / legend */
+        header {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            padding: 15px 20px 10px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+            min-height: auto;
+            width: auto;
+            max-width: 600px;
+        }
+
+        .family-heritage {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .heritage-line {
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: #D4A574;
+            font-weight: 500;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .family-title {
+            font-family: Georgia, "Times New Roman", Times, serif;
+            font-size: 2.2rem;
+            font-weight: 400;
+            color: var(--title);
+            margin: 0;
+            letter-spacing: -0.5px;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+
+        .heritage-subtitle {
+            font-family: Georgia, "Times New Roman", Times, serif;
+            font-size: 14px;
+            color: var(--muted);
+            font-style: italic;
+            max-width: 400px;
+            line-height: 1.4;
+        }
+
+        .legend {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            color: #3b3b3b;
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+            font-size: 12px;
+            justify-content: center;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            display: inline-block;
+            margin-right: 8px;
+            transform: translateY(1px);
+        }
+
+        .legendItem {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legendRight {
+            color: var(--muted);
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+            justify-content: center;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            min-width: 200px;
+            max-width: 400px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 0, 0, .14);
+            background: rgba(255, 255, 255, .78);
+            outline: none;
+            font-size: 13px;
+        }
+
+        button {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 0, 0, .14);
+            background: rgba(255, 255, 255, .72);
+            cursor: pointer;
+            font-size: 13px;
+            min-width: 60px;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, .92);
+        }
+
+        /* Canvas area */
+        .stage {
+            position: fixed;
+            top: 180px;
+            bottom: 100px;
+            left: 0;
+            right: 0;
+            background: linear-gradient(180deg, var(--paper), var(--paper2));
+        }
+
+        .viewport {
+            position: absolute;
+            inset: 0;
+            overflow-x: auto;
+            overflow-y: auto;
+            padding: 40px 20px;
+        }
+
+        /* Custom scrollbar styling */
+        .viewport::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        .viewport::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 6px;
+        }
+
+        .viewport::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+        }
+
+        .viewport::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .board {
+            position: relative;
+            min-width: 1200px;
+            min-height: 800px;
+            width: max-content;
+            height: max-content;
+            transform-origin: top left;
+        }
+
+        /* Auto-scale for small screens */
+        @media (max-width: 1200px) {
+            .board {
+                transform: scale(0.85);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .board {
+                transform: scale(0.7);
+            }
+        }
+
+        svg {
+            position: absolute;
+            inset: 0;
+            overflow: visible;
+            pointer-events: none;
+        }
+
+        /* Node card */
+        .node {
+            position: absolute;
+            width: calc(var(--nodeW) * 1px);
+            min-height: calc(var(--nodeH) * 1px);
+            padding: 3px 2px;
+            border-radius: var(--radius);
+            background: var(--card);
+            border: 1px solid var(--cardBorder);
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+
+            /* left accent bar like your design */
+            border-left: 4px solid var(--b2);
+        }
+
+        .node .name {
+            font-weight: 700;
+            letter-spacing: .2px;
+            font-size: 12px;
+            text-transform: uppercase;
+            line-height: 1.2;
+        }
+
+        .node .spouseLine {
+            margin-top: 2px;
+            font-size: 10px;
+            color: var(--muted);
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+            letter-spacing: .1px;
+            line-height: 1.2;
+        }
+
+        .node.branch1 {
+            border-left-color: var(--b1);
+        }
+
+        .node.branch2 {
+            border-left-color: var(--b2);
+        }
+
+        .node.branch3 {
+            border-left-color: var(--b3);
+        }
+
+        .node.highlight {
+            outline: 2px solid rgba(0, 0, 0, .18);
+            box-shadow: 0 0 0 6px rgba(0, 0, 0, .06), var(--shadow);
+        }
+
+        footer {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: linear-gradient(180deg, var(--paper2), var(--paper));
+            padding: 15px 30px;
+            text-align: center;
+        }
+
+        .footer-text {
+            font-family: Georgia, "Times New Roman", Times, serif;
+            font-size: 13px;
+            color: var(--muted);
+            font-style: italic;
+            letter-spacing: 0.3px;
+        }
+
+        /* Decorative divider */
+        .decorative-divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 15px 0;
+        }
+
+        .divider-line {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(to right, transparent, #D4A574, transparent);
+            max-width: 120px;
+        }
+
+        .divider-diamond {
+            width: 12px;
+            height: 12px;
+            background: #D4A574;
+            transform: rotate(45deg);
+            margin: 0 15px;
+            position: relative;
+        }
+
+        .divider-diamond::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            right: 2px;
+            bottom: 2px;
+            background: var(--paper);
+            transform: rotate(45deg);
+        }
+
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+            :root {
+                --nodeW: 100;
+                --nodeH: 32;
+                --gapX: 3;
+                --gapY: 35;
+            }
+
+            header {
+                padding: 15px 8px 10px 8px;
+                gap: 8px;
+            }
+
+            .family-title {
+                font-size: 1.8rem;
+            }
+
+            .heritage-subtitle {
+                font-size: 12px;
+            }
+
+            .heritage-line {
+                font-size: 10px;
+            }
+
+            .stage {
+                top: 160px;
+                bottom: 90px;
+            }
+        }
+
+        .node {
+            padding: 3px 3px;
+        }
+
+        .node .name {
+            font-size: 10px;
+        }
+
+        .node .spouseLine {
+            font-size: 8px;
+            margin-top: 1px;
+        }
+
+        @media (max-width: 480px) {
+            :root {
+                --nodeW: 90;
+                --nodeH: 28;
+                --gapX: 2;
+                --gapY: 30;
+            }
+
+            .board {
+                transform: scale(0.9);
+            }
+
+            .node {
+                padding: 2px 3px;
+            }
+
+            .node .name {
+                font-size: 9px;
+            }
+
+            .node .spouseLine {
+                font-size: 7px;
+                margin-top: 1px;
+            }
+        }
+
+        /* Desktop responsive for smaller laptops */
+        @media (min-width: 769px) and (max-width: 1400px) {
+            header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .stage {
+                padding-top: 145px;
+            }
+        }
+
+        /* Large desktop */
+        @media (min-width: 1401px) {
+            header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 20px;
+            }
+
+            .stage {
+                padding-top: 135px;
+            }
+        }
+
+        /* Optional: improve print */
+        @media print {
+            body {
+                overflow: visible;
+            }
+
+            header {
+                position: static;
+            }
+
+            .stage {
+                padding-top: 0;
+            }
+
+            .viewport {
+                overflow: visible;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="family-heritage">
+            <div class="heritage-line">FAMILY HERITAGE</div>
+            <h1 class="family-title">The Shaw Family Tree</h1>
+            <div class="heritage-subtitle">Tracing our roots through generations, honoring the legacy of Tribhuvan Shaw
+            </div>
+            <div class="decorative-divider">
+                <div class="divider-line"></div>
+                <div class="divider-diamond"></div>
+                <div class="divider-line"></div>
+            </div>
+        </div>
+    </header>
+
+    <div class="stage">
+        <div id="viewport" class="viewport">
+            <div id="board" class="board">
+                <svg id="wires"></svg>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="decorative-divider">
+            <div class="divider-line"></div>
+            <div class="divider-diamond"></div>
+            <div class="divider-line"></div>
+        </div>
+        <div class="footer-text">Preserving our family history for future generations</div>
+    </footer>
+
+    <script>
+        /**
+         * Reconstructed from your diagram.
+         * branch: 1 (red), 2 (green), 3 (blue)
+         * spouse: shown as "+ SPOUSE" (like your design)
+         */
+        const tree = {
+            id: "tribhuvan", name: "TRIBHUVAN SHAW", branch: 2,
+            children: [{
+                id: "bhola", name: "BHOLA SHAW", branch: 1,
+                children: [{
+                    id: "budhan", name: "BUDHAN SHAW", branch: 2,
+                    children: [
+                        // Left big branch (Bhikhan)
+                        {
+                            id: "bhikhan", name: "BHIKHAN SHAW", branch: 3,
+                            children: [
+                                {
+                                    id: "prasadi", name: "PRASADI SHAW", branch: 1,
+                                    children: [
+                                        {
+                                            id: "latto", name: "LATTO SHAW", branch: 1,
+                                            children: [
+                                                {
+                                                    id: "kishori", name: "KISHORI SHAW", branch: 1
+                                                },
+                                                {
+                                                    id: "CHOTAN", name: "CHOTAN SHAW", branch: 1,
+                                                    children: [{ id: "gaurav", name: "GAURAV SHAW", branch: 2 }]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    id: "bundi", name: "BUNDI SHAW", branch: 3,
+                                    children: [
+
+                                    ]
+                                },
+                                {
+                                    id: "banshi", name: "BANSHI LAL SHAW", branch: 1, spouse: "LAXMI DEVI",
+                                    children: [
+                                        {
+                                            id: "bijay", name: "BIJAY GUPTA", branch: 3, spouse: "SUMITRA GUPTA",
+                                            children: [
+                                                {
+                                                    id: "birendra", name: "BIRENDRA GUPTA", branch: 1, spouse: "NANCY GUPTA",
+                                                    children: [
+                                                        { id: "vedant", name: "VEDANT GUPTA", branch: 1, },
+                                                        { id: "KRISHIV", name: "KRISHIV GUPTA", branch: 1, }
+                                                    ]
+                                                },
+                                                {
+                                                    id: "narendra", name: "NARENDRA GUPTA", branch: 2, spouse: "VARSHA RANI",
+                                                    children: [
+                                                        { id: "neev", name: "NEEV GUPTA", branch: 2 },
+                                                        { id: "navya", name: "NAVYA GUPTA", branch: 2 }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            id: "ashok", name: "ASHOK GUPTA", branch: 1, spouse: "BASANTI DEVI",
+                                            children: [
+
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+
+                        // Middle branch (Tillak)
+                        {
+                            id: "tillak", name: "TILLAK SHAW", branch: 2,
+                            children: [
+                                {
+                                    id: "prameshwar", name: "PRAMESHWAR", branch: 2,
+                                    children: [
+                                        {
+                                            id: "arjun", name: "ARJUN", branch: 1,
+                                        },
+                                        {
+                                            id: "SAUKHI", name: "SAUKHI", branch: 1,
+                                        },
+                                        {
+                                            id: "anandi", name: "ANANDI", branch: 1,
+                                        }
+                                    ]
+                                },
+                                { id: "hullas", name: "HULLAS", branch: 2 },
+                                {
+                                    id: "jethan", name: "JETHAN", branch: 1,
+                                    children: [
+                                        { id: "suresh", name: "SURESH" },
+                                        { id: "DINESH", name: "DINESH" }
+                                    ]
+                                },
+                                {
+                                    id: "ramprasad", name: "RAMPRASAD", branch: 2,
+                                    children: [
+                                        { id: "anil", name: "ANIL", branch: 3 },
+                                        { id: "SUNIL", name: "SUNIL", branch: 3 },
+                                    ]
+                                }
+                            ]
+                        },
+
+                        // Right branch (Shibu)
+                        {
+                            id: "shibu", name: "SHIBU", branch: 3,
+                            children: [
+                                {
+                                    id: "rajkumar", name: "RAJKUMAR", branch: 3,
+                                    children: [
+                                        {
+                                            id: "naresh", name: "NARESH", branch: 2,
+                                            children: [{ id: "yash", name: "YASH", branch: 1 }]
+                                        },
+                                        {
+                                            id: "DHARMENDRA", name: "DHARMENDRA", branch: 2,
+                                        }
+                                    ]
+                                },
+                                {
+                                    id: "lakhminarayan", name: "LAKHMINARAYAN", branch: 3,
+                                    children: [{ id: "jayprakash", name: "JAYPRAKASH", branch: 1 }]
+                                },
+                                // In your original image, GURUPRASAD + PINTU appears on the far right.
+                                // In the stylized design image, PINTU is shown under that right side column.
+                                {
+                                    id: "guruprasad", name: "GURUPRASAD", branch: 3,
+                                    children: [{ id: "pintu", name: "PINTU", branch: 3 }]
+                                }
+                            ]
+                        }
+                    ]
+                }]
+            }]
+        };
+
+        // ---------------- Layout engine (simple tree width allocation) ----------------
+        const CSS = getComputedStyle(document.documentElement);
+        const NODE_W = Number(CSS.getPropertyValue("--nodeW").trim());
+        const NODE_H = Number(CSS.getPropertyValue("--nodeH").trim());
+        const GAP_X = Number(CSS.getPropertyValue("--gapX").trim());
+        const GAP_Y = Number(CSS.getPropertyValue("--gapY").trim());
+
+        const board = document.getElementById("board");
+        const wires = document.getElementById("wires");
+        const viewport = document.getElementById("viewport");
+
+        const nodesById = new Map();
+        const domById = new Map();
+        const positions = new Map();
+        const edges = [];
+
+        function walk(node, parent = null) {
+            nodesById.set(node.id, node);
+            if (parent) edges.push({ from: parent.id, to: node.id });
+            (node.children || []).forEach(ch => walk(ch, node));
+        }
+        walk(tree);
+
+        function subtreeWidth(node) {
+            const kids = node.children || [];
+            if (!kids.length) return NODE_W;
+            const widths = kids.map(subtreeWidth);
+            const sum = widths.reduce((a, b) => a + b, 0) + GAP_X * (kids.length - 1);
+            return Math.max(NODE_W, sum);
+        }
+
+        function layout(node, left, depth) {
+            const w = subtreeWidth(node);
+            const xCenter = left + w / 2;
+            const y = depth * (NODE_H + GAP_Y);
+            positions.set(node.id, { x: xCenter - NODE_W / 2, y });
+
+            const kids = node.children || [];
+            if (!kids.length) return;
+
+            let cursor = left;
+            for (const ch of kids) {
+                const cw = subtreeWidth(ch);
+                layout(ch, cursor, depth + 1);
+                cursor += cw + GAP_X;
+            }
+        }
+
+        function branchClass(b) {
+            if (b === 1) return "branch1";
+            if (b === 2) return "branch2";
+            return "branch3";
+        }
+
+        function renderNodes() {
+            board.querySelectorAll(".node").forEach(n => n.remove());
+            domById.clear();
+
+            for (const [id, node] of nodesById.entries()) {
+                const el = document.createElement("div");
+                el.className = `node ${branchClass(node.branch)} ${(!node.children || node.children.length === 0) ? "small" : ""}`;
+                el.dataset.id = id;
+
+                const spouse = (node.spouse && node.spouse.trim())
+                    ? `<div class="spouseLine">+ ${node.spouse.toUpperCase()}</div>`
+                    : "";
+
+                el.innerHTML = `<div>
+      <div class="name">${node.name}</div>
+      ${spouse}
+    </div>`;
+
+                board.appendChild(el);
+                domById.set(id, el);
+            }
+        }
+
+        function renderPositions() {
+            let maxX = 0, maxY = 0;
+            for (const [id, pos] of positions.entries()) {
+                const el = domById.get(id);
+                if (!el) continue;
+                el.style.left = pos.x + "px";
+                el.style.top = pos.y + "px";
+                maxX = Math.max(maxX, pos.x + NODE_W);
+                maxY = Math.max(maxY, pos.y + NODE_H);
+            }
+
+            const pad = Math.max(50, window.innerWidth > 768 ? 100 : 60);
+            board.style.width = (maxX + pad) + "px";
+            board.style.height = (maxY + pad) + "px";
+
+            wires.setAttribute("width", maxX + pad);
+            wires.setAttribute("height", maxY + pad);
+            wires.setAttribute("viewBox", `0 0 ${maxX + pad} ${maxY + pad}`);
+        }
+
+        function elbowPath(x1, y1, x2, y2) {
+            // soft “orthogonal-ish” curve like the sample design
+            const midY = (y1 + y2) / 2;
+            return `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
+        }
+
+        function renderEdges() {
+            wires.innerHTML = "";
+            for (const e of edges) {
+                const a = positions.get(e.from);
+                const b = positions.get(e.to);
+                if (!a || !b) continue;
+
+                const x1 = a.x + NODE_W / 2;
+                const y1 = a.y + NODE_H;
+                const x2 = b.x + NODE_W / 2;
+                const y2 = b.y;
+
+                const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                p.setAttribute("d", elbowPath(x1, y1, x2, y2));
+                p.setAttribute("fill", "none");
+                p.setAttribute("stroke", getComputedStyle(document.documentElement).getPropertyValue("--wire").trim());
+                p.setAttribute("stroke-width", "2");
+                p.setAttribute("stroke-linecap", "round");
+                wires.appendChild(p);
+            }
+        }
+
+        function build() {
+            layout(tree, 20, 0);
+            renderNodes();
+            renderPositions();
+            renderEdges();
+        }
+
+        function search(text) {
+            clearHighlights();
+            const term = text.trim().toLowerCase();
+            if (!term) return;
+
+            const matches = [];
+            for (const [id, node] of nodesById.entries()) {
+                const hay = (node.name + " " + (node.spouse || "")).toLowerCase();
+                if (hay.includes(term)) matches.push(id);
+            }
+
+        }
+
+        build();
+        window.addEventListener("resize", () => build());
+    </script>
+</body>
+
+</html>
